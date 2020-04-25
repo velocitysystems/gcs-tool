@@ -68,17 +68,11 @@
                 }
             }
 
-            if (!File.Exists(_options.AudioPath))
-            {
-                _logger.Error("The audio path {path} does not exist or may have been deleted.", _options.AudioPath);
-                return;
-            }
-
-            _logger.Information("Starting transcription for {audioPath}.", _options.AudioPath);
+            _logger.Information("Starting transcription for {audioUri}.", _options.AudioUri);
 
             // Asynchronously transcribe the audio.
             IReadOnlyList<SpeechRecognitionAlternative> transcription = null;
-            await foreach (var result in _service.LongRunningRecognizeAsync(_options.AudioPath))
+            await foreach (var result in _service.LongRunningRecognizeAsync(_options.AudioUri))
             {
                 if (result.Progress < 100)
                 {
@@ -86,8 +80,9 @@
                 }
 
                 transcription = result.Transcription;
-                _logger.Information("Transcription completed.");
             }
+
+            _logger.Information("Transcription completed.");
 
             // Analyze transcription by speaker.
             var sentences = new List<AnalysedSentence>();
@@ -105,7 +100,7 @@
 
             // Write to JSON file.
             var json = JsonConvert.SerializeObject(sentences);
-            var jsonPath = _options.TranscriptionPath ?? Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), "transcription.json");
+            var jsonPath = _options.OutputPath ?? Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), "transcription.json");
             File.WriteAllText(jsonPath, json);
         }
 
@@ -158,11 +153,11 @@
             [Option('c', "credentials", Required = true, HelpText = "The path to the \"credentials.json\" file.")]
             public string CredentialsPath { get; set; }
 
-            [Option('a', "audioPath", Required = true, HelpText = "The path to the audio file to transcribe.")]
-            public string AudioPath { get; set; }
+            [Option('u', "audioUri", Required = true, HelpText = "The URI of the FLAC audio file to transcribe.")]
+            public string AudioUri { get; set; }
 
-            [Option('t', "transcriptionPath", Required = false, HelpText = "The path to the transcription JSON file.")]
-            public string TranscriptionPath { get; set; }
+            [Option('o', "outputPath", Required = false, HelpText = "The path to the output transcription JSON file.")]
+            public string OutputPath { get; set; }
         }
 
         /// <summary>

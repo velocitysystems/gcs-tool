@@ -43,16 +43,16 @@
         /// and <a href="https://developers.google.com/drive/api/v3/about-files">Files and folders overview</a>.
         /// </para>
         /// </summary>
-        /// <param name="audioPath">The audio path.</param>
+        /// <param name="storageUri">The storage URI for the audio.</param>
         /// <param name="encoding">Optional audio encoding type.</param>
         /// <param name="sampleRateHertz">Optional audio sample rate in hertz.</param>
         /// <param name="languageCode">Optional language code of the audio i.e. "en".</param>
         /// <returns>An <see cref="IAsyncEnumerable{T}" /> where each iterator returns a progress and transcription results object.</returns>
         public async IAsyncEnumerable<(int Progress, IReadOnlyList<SpeechRecognitionAlternative> Transcription)> LongRunningRecognizeAsync(
-            string audioPath, 
-            AudioEncoding encoding = AudioEncoding.Linear16, 
+            string storageUri, 
+            AudioEncoding encoding = AudioEncoding.Flac, 
             int sampleRateHertz = 44100,
-            string languageCode = "en")
+            string languageCode = "en-NZ")
         {
             var config = new RecognitionConfig()
             {
@@ -65,7 +65,7 @@
                 }
             };
 
-            var longOperation = _client.LongRunningRecognize(config, RecognitionAudio.FromFile(audioPath));
+            var longOperation = _client.LongRunningRecognize(config, RecognitionAudio.FromStorageUri(storageUri));
             var lastProgressPercent = 0;
             while (true)
             {

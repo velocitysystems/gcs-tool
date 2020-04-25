@@ -3,6 +3,7 @@ A .NET Core console application to transcribe audio using the Google Speech-to-T
 
 **Features**
 - Supports long-running transcription
+- Supports FLAC audio format
 
 **Supported Platforms**
 - Windows
@@ -14,7 +15,8 @@ A .NET Core console application to transcribe audio using the Google Speech-to-T
 |Flag|Description|Required|
 |---|---|---|
 |`-c "credentials.json"`|The path to the "credentials.json" file|True|
-|`-a "audio.mp3"`|The path to the audio file to transcribe|True|
+|`-u "gs://gcs-test-data/audio.flac"`|The URI of the FLAC audio file to transcribe|True|
+|`-o "transcription.json"`|The path to the output transcription JSON file|False|
 
 **Requirements**
 
