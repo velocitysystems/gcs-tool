@@ -7,6 +7,7 @@
     using System.Threading.Tasks;
     using CommandLine;
     using GcsTool.Services;
+    using Google.Cloud.Speech.V1;
     using Serilog;
 
     public class Program
@@ -70,22 +71,24 @@
                 return;
             }
 
-            _logger.Information("Starting transcription.");
+            _logger.Information("Starting transcription for {audioPath}.", _options.AudioPath);
 
             // Asynchronously transcribe the audio.
-            await foreach (var status in _service.LongRunningRecognizeAsync(_options.AudioPath))
+            IReadOnlyList<SpeechRecognitionAlternative> transcription = null;
+            await foreach (var result in _service.LongRunningRecognizeAsync(_options.AudioPath))
             {
-                switch (status.Completed)
+                if (result.Progress < 100)
                 {
-                    case true:
-                        _logger.Information("Transcription completed.");
-                        break;
-
-                    case false:
-                        _logger.Information("Transcription progress: {progress}%.", status.Progress);
-                        break;
+                    _logger.Information("Transcription progress {progress}%.", result.Progress);
+                    continue;
                 }
+
+                transcription = result.Transcription;
+                _logger.Information("Transcription completed.");
             }
+
+            // TODO: Process the audio.
+            var t = transcription;
         }
 
         #endregion

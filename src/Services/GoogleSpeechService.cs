@@ -48,8 +48,8 @@
         /// <param name="encoding">Optional audio encoding type.</param>
         /// <param name="sampleRateHertz">Optional audio sample rate in hertz.</param>
         /// <param name="languageCode">Optional language code of the audio i.e. "en".</param>
-        /// <returns>An <see cref="IAsyncEnumerable{T}" /> where each iterator returns a progress, completed and results object.</returns>
-        public async IAsyncEnumerable<(int Progress, bool Completed, IReadOnlyList<SpeechRecognitionResult> Results)> LongRunningRecognizeAsync(
+        /// <returns>An <see cref="IAsyncEnumerable{T}" /> where each iterator returns a progress and transcription results object.</returns>
+        public async IAsyncEnumerable<(int Progress, IReadOnlyList<SpeechRecognitionAlternative> Transcription)> LongRunningRecognizeAsync(
             string audioPath, 
             AudioEncoding encoding = AudioEncoding.Linear16, 
             int sampleRateHertz = 44100,
@@ -67,19 +67,27 @@
             };
 
             var longOperation = _client.LongRunningRecognize(config, RecognitionAudio.FromFile(audioPath));
+            var lastProgressPercent = 0;
             while (true)
             {
                 if (longOperation != null && longOperation.IsCompleted)
                 {
                     var response = longOperation.Result;
-                    var results = response.Results;
+                    var wordAlternatives = response.Results.SelectMany(q => q.Alternatives).Where(q => q.Words.Count > 0);
+                    
 
-                    yield return (100, true, results.ToList());
+                    yield return (longOperation.Metadata.ProgressPercent, wordAlternatives.ToList());
                     yield break;
                 }
 
                 longOperation = await longOperation.PollOnceAsync();
-                yield return (longOperation.Metadata.ProgressPercent, false, null);
+                var progressPercent = longOperation.Metadata.ProgressPercent;
+                if (progressPercent != lastProgressPercent)
+                {
+                    // Only emit progress percent if it has changed.
+                    lastProgressPercent = progressPercent;
+                    yield return (longOperation.Metadata.ProgressPercent, null);
+                }                
             }            
         }
 
