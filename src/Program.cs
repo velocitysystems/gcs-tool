@@ -73,9 +73,18 @@
             _logger.Information("Starting transcription.");
 
             // Asynchronously transcribe the audio.
-            await foreach (var results in _service.LongRunningRecognizeAsync(_options.AudioPath))
+            await foreach (var status in _service.LongRunningRecognizeAsync(_options.AudioPath))
             {
+                switch (status.Completed)
+                {
+                    case true:
+                        _logger.Information("Transcription completed.");
+                        break;
 
+                    case false:
+                        _logger.Information("Transcription progress: {progress}%.", status.Progress);
+                        break;
+                }
             }
         }
 

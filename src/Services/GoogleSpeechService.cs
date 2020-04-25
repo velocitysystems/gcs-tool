@@ -1,6 +1,7 @@
 ﻿namespace GcsTool.Services
 {
     using System.Collections.Generic;
+    using System.Linq;
     using Google.Cloud.Speech.V1;
     using Google.LongRunning;
     using static Google.Cloud.Speech.V1.RecognitionConfig.Types;
@@ -47,11 +48,11 @@
         /// <param name="encoding">Optional audio encoding type.</param>
         /// <param name="sampleRateHertz">Optional audio sample rate in hertz.</param>
         /// <param name="languageCode">Optional language code of the audio i.e. "en".</param>
-        /// <returns>An <see cref="IAsyncEnumerable{T}" /> where each iterator returns a transcript result.</returns>
-        public async IAsyncEnumerable<string> LongRunningRecognizeAsync(
+        /// <returns>An <see cref="IAsyncEnumerable{T}" /> where each iterator returns a progress, completed and results object.</returns>
+        public async IAsyncEnumerable<(int Progress, bool Completed, IReadOnlyList<SpeechRecognitionResult> Results)> LongRunningRecognizeAsync(
             string audioPath, 
             AudioEncoding encoding = AudioEncoding.Linear16, 
-            int sampleRateHertz = 16000,
+            int sampleRateHertz = 44100,
             string languageCode = "en")
         {
             var config = new RecognitionConfig()
@@ -59,30 +60,26 @@
                 Encoding = encoding,
                 SampleRateHertz = sampleRateHertz,
                 LanguageCode = languageCode,
+                DiarizationConfig = new SpeakerDiarizationConfig()
+                {
+                    EnableSpeakerDiarization = true,
+                }
             };
 
-            Operation<LongRunningRecognizeResponse, LongRunningRecognizeMetadata> longOperation = null;
+            var longOperation = _client.LongRunningRecognize(config, RecognitionAudio.FromFile(audioPath));
             while (true)
             {
-                if (longOperation != null && (longOperation.IsCompleted || longOperation.IsFaulted))
+                if (longOperation != null && longOperation.IsCompleted)
                 {
+                    var response = longOperation.Result;
+                    var results = response.Results;
+
+                    yield return (100, true, results.ToList());
                     yield break;
                 }
 
-                var recognizeRequest = new LongRunningRecognizeRequest();
-                recognizeRequest.Config = config;
-                recognizeRequest.Audio = RecognitionAudio.FromFile(audioPath);
-
-                longOperation = await _client.LongRunningRecognizeAsync(recognizeRequest);
-                
-                var response = longOperation.Result;
-                foreach (var result in response.Results)
-                {
-                    foreach (var alternative in result.Alternatives)
-                    {
-                        yield return alternative.Transcript;
-                    }
-                }
+                longOperation = await longOperation.PollOnceAsync();
+                yield return (longOperation.Metadata.ProgressPercent, false, null);
             }            
         }
 
