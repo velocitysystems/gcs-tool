@@ -2,12 +2,15 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using CommandLine;
     using GcsTool.Services;
     using Google.Cloud.Speech.V1;
+    using MoreLinq;
+    using Newtonsoft.Json;
     using Serilog;
 
     public class Program
@@ -80,15 +83,30 @@
                 if (result.Progress < 100)
                 {
                     _logger.Information("Transcription progress {progress}%.", result.Progress);
-                    continue;
                 }
 
                 transcription = result.Transcription;
                 _logger.Information("Transcription completed.");
             }
 
-            // TODO: Process the audio.
-            var t = transcription;
+            // Analyze transcription by speaker.
+            var sentences = new List<AnalysedSentence>();
+            var wordsBySpeakerTag = transcription.SelectMany(q => q.Words).Where(q => q.SpeakerTag != 0).GroupAdjacent(q => q.SpeakerTag);
+            foreach (var group in wordsBySpeakerTag)
+            {
+                var sentence = new AnalysedSentence()
+                {
+                    SpeakerTag = group.Key,
+                    Sentence = string.Join(" ", group.Select(x => x.Word.ToString()).ToArray())
+                };
+
+                sentences.Add(sentence);
+            }
+
+            // Write to JSON file.
+            var json = JsonConvert.SerializeObject(sentences);
+            var jsonPath = _options.TranscriptionPath ?? Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), "transcription.json");
+            File.WriteAllText(jsonPath, json);
         }
 
         #endregion
@@ -140,8 +158,27 @@
             [Option('c', "credentials", Required = true, HelpText = "The path to the \"credentials.json\" file.")]
             public string CredentialsPath { get; set; }
 
-            [Option('a', "audio", Required = true, HelpText = "The path to the audio file to transcribe.")]
+            [Option('a', "audioPath", Required = true, HelpText = "The path to the audio file to transcribe.")]
             public string AudioPath { get; set; }
+
+            [Option('t', "transcriptionPath", Required = false, HelpText = "The path to the transcription JSON file.")]
+            public string TranscriptionPath { get; set; }
+        }
+
+        /// <summary>
+        /// A analysed sentence for a speaker.
+        /// </summary>
+        private class AnalysedSentence
+        {
+            /// <summary>
+            /// Gets or sets the speaker tag.
+            /// </summary>
+            public int SpeakerTag { get; set; }
+
+            /// <summary>
+            /// Gets or sets the setence.
+            /// </summary>
+            public string Sentence { get; set; }
         }
 
         #endregion

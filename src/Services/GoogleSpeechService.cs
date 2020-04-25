@@ -3,7 +3,6 @@
     using System.Collections.Generic;
     using System.Linq;
     using Google.Cloud.Speech.V1;
-    using Google.LongRunning;
     using static Google.Cloud.Speech.V1.RecognitionConfig.Types;
 
     /// <summary>
