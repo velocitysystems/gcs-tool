@@ -1,0 +1,9 @@
+*.suo
+*.user
+.vs/
+bin
+obj
+packages
+*StyleCop.Cache
+*.rsa
+launchSettings.json
