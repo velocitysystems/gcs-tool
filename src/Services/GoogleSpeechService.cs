@@ -52,17 +52,18 @@
             string storageUri, 
             AudioEncoding encoding = AudioEncoding.Linear16, 
             int sampleRateHertz = 16000,
-            string languageCode = "en-NZ")
+            string languageCode = "en-US")
         {
             var config = new RecognitionConfig()
             {
                 Encoding = encoding,
                 SampleRateHertz = sampleRateHertz,
                 LanguageCode = languageCode,
+                EnableAutomaticPunctuation = true,
                 DiarizationConfig = new SpeakerDiarizationConfig()
                 {
                     EnableSpeakerDiarization = true,
-                }
+                },                
             };
 
             var longOperation = _client.LongRunningRecognize(config, RecognitionAudio.FromStorageUri(storageUri));
