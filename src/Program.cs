@@ -7,6 +7,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using CommandLine;
+    using GcsTool.Models;
     using GcsTool.Services;
     using Google.Cloud.Speech.V1;
     using MoreLinq;
@@ -142,7 +143,7 @@
             try
             {
                 IReadOnlyList<SpeechRecognitionAlternative> transcription = null;
-                await foreach (var result in _speechService.LongRunningRecognizeAsync(uploadedAudioUri, encoding, sampleRate))
+                await foreach (var result in _speechService.LongRunningRecognizeAsync(uploadedAudioUri, encoding, sampleRate, _options.LanguageCode))
                 {
                     if (result.Progress < 100)
                     {
@@ -155,30 +156,30 @@
                 _logger.Information("Transcription completed.");
 
                 // Analyze transcription by speaker.
-                var transcripts = new List<AnalysedTranscript>();
+                var textBlocks = new List<TranscribedTextBlock>();
                 var wordsBySpeakerTag = transcription.SelectMany(q => q.Words).Where(q => q.SpeakerTag != 0).GroupAdjacent(q => q.SpeakerTag);
                 foreach (var group in wordsBySpeakerTag)
                 {
-                    var transcript = new AnalysedTranscript()
+                    var textBlock = new TranscribedTextBlock()
                     {
                         SpeakerTag = group.Key,
-                        Transcript = string.Join(" ", group.Select(x => x.Word.ToString()).ToArray())
+                        Text = string.Join(" ", group.Select(x => x.Word.ToString()).ToArray())
                     };
 
-                    transcripts.Add(transcript);
+                    textBlocks.Add(textBlock);
                 }
 
                 // Create JSON structure.
-                var analysedFile = new AnalysedFile()
+                var transcribedFile = new TranscribedFile()
                 {
                     AudioPath = _options.AudioPath,
                     AudioUri = uploadedAudioUri,
                     Created = DateTime.Now,
-                    Transcripts = transcripts.ToArray()
+                    TextBlocks = textBlocks.ToArray()
                 };
 
                 // Write to JSON file.
-                var json = JsonConvert.SerializeObject(analysedFile);
+                var json = JsonConvert.SerializeObject(transcribedFile);
                 var jsonPath = _options.OutputPath ?? Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"Transcription-{Path.GetFileNameWithoutExtension(_options.AudioPath)}.json");
                 File.WriteAllText(jsonPath, json);
             }
@@ -252,50 +253,11 @@
             [Option('a', "audioPath", Required = true, HelpText = "The path to the audio file to transcribe.")]
             public string AudioPath { get; set; }
 
+            [Option('l', "languageCode", Required = false, HelpText = "The language code of the supplied audio, defaults to en-US.")]
+            public string LanguageCode { get; set; } = "en-US";
+
             [Option('o', "outputPath", Required = false, HelpText = "The path to the output transcription JSON file.")]
             public string OutputPath { get; set; }
-        }
-
-        /// <summary>
-        /// A analysed file.
-        /// </summary>
-        private class AnalysedFile
-        {
-            /// <summary>
-            /// Gets or sets the audio path.
-            /// </summary>
-            public string AudioPath { get; set; }
-
-            /// <summary>
-            /// Gets or sets the audio URI.
-            /// </summary>
-            public string AudioUri { get; set; }
-
-            /// <summary>
-            /// Gets or sets the created timestamp.
-            /// </summary>
-            public DateTime Created { get; set; }
-
-            /// <summary>
-            /// Gets or sets the analysed transcripts..
-            /// </summary>
-            public AnalysedTranscript[] Transcripts { get; set; }
-        }
-
-        /// <summary>
-        /// An analysed transcript by speaker.
-        /// </summary>
-        private class AnalysedTranscript
-        {
-            /// <summary>
-            /// Gets or sets the speaker tag.
-            /// </summary>
-            public int SpeakerTag { get; set; }
-
-            /// <summary>
-            /// Gets or sets the transcript.
-            /// </summary>
-            public string Transcript { get; set; }
         }
 
         #endregion

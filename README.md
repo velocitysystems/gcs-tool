@@ -17,6 +17,7 @@ A .NET Core console application to transcribe audio using the Google Speech-to-T
 |---|---|---|
 |`-c "credentials.json"`|The path to the "credentials.json" file|True|
 |`-a "audio.flac"`|The path to the audio file to transcribe|True|
+|`-t "en-US"`|The language code of the supplied audio, defaults to en-US.|False|
 |`-o "transcription.json"`|The path to the output transcription JSON file|False|
 
 **Requirements**

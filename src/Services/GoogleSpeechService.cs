@@ -47,7 +47,7 @@
         /// <param name="storageUri">The storage URI for the audio.</param>
         /// <param name="encoding">Optional audio encoding type.</param>
         /// <param name="sampleRateHertz">Optional audio sample rate in hertz.</param>
-        /// <param name="languageCode">Optional language code of the audio i.e. "en".</param>
+        /// <param name="languageCode">Optional language code of the audio i.e. "en-US".</param>
         /// <returns>An <see cref="IAsyncEnumerable{T}" /> where each iterator returns a progress and transcription results object.</returns>
         public async IAsyncEnumerable<(int Progress, IReadOnlyList<SpeechRecognitionAlternative> Transcription)> LongRunningRecognizeAsync(
             string storageUri, 
@@ -90,7 +90,7 @@
                     yield return (longOperation.Metadata.ProgressPercent, null);
                 }
 
-                // Delay 5s before polling again so we don't overwhelm the API.
+                // Delay 5s before polling again so we don't flood the API with polling requests.
                 await Task.Delay(5000);
             }            
         }
