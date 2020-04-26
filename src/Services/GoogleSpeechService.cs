@@ -50,8 +50,8 @@
         /// <returns>An <see cref="IAsyncEnumerable{T}" /> where each iterator returns a progress and transcription results object.</returns>
         public async IAsyncEnumerable<(int Progress, IReadOnlyList<SpeechRecognitionAlternative> Transcription)> LongRunningRecognizeAsync(
             string storageUri, 
-            AudioEncoding encoding = AudioEncoding.Flac, 
-            int sampleRateHertz = 44100,
+            AudioEncoding encoding = AudioEncoding.Linear16, 
+            int sampleRateHertz = 16000,
             string languageCode = "en-NZ")
         {
             var config = new RecognitionConfig()
