@@ -2,6 +2,7 @@
 {
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading.Tasks;
     using Google.Cloud.Speech.V1;
     using static Google.Cloud.Speech.V1.RecognitionConfig.Types;
 
@@ -87,7 +88,10 @@
                     // Only emit progress percent if it has changed.
                     lastProgressPercent = progressPercent;
                     yield return (longOperation.Metadata.ProgressPercent, null);
-                }                
+                }
+
+                // Delay 5s before polling again so we don't overwhelm the API.
+                await Task.Delay(5000);
             }            
         }
 
