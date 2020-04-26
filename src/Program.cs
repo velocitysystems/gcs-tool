@@ -155,21 +155,30 @@
                 _logger.Information("Transcription completed.");
 
                 // Analyze transcription by speaker.
-                var sentences = new List<AnalysedSentence>();
+                var transcripts = new List<AnalysedTranscript>();
                 var wordsBySpeakerTag = transcription.SelectMany(q => q.Words).Where(q => q.SpeakerTag != 0).GroupAdjacent(q => q.SpeakerTag);
                 foreach (var group in wordsBySpeakerTag)
                 {
-                    var sentence = new AnalysedSentence()
+                    var transcript = new AnalysedTranscript()
                     {
                         SpeakerTag = group.Key,
-                        Sentence = string.Join(" ", group.Select(x => x.Word.ToString()).ToArray())
+                        Transcript = string.Join(" ", group.Select(x => x.Word.ToString()).ToArray())
                     };
 
-                    sentences.Add(sentence);
+                    transcripts.Add(transcript);
                 }
 
+                // Create JSON structure.
+                var analysedFile = new AnalysedFile()
+                {
+                    AudioPath = _options.AudioPath,
+                    AudioUri = uploadedAudioUri,
+                    Created = DateTime.Now,
+                    Transcripts = transcripts.ToArray()
+                };
+
                 // Write to JSON file.
-                var json = JsonConvert.SerializeObject(sentences);
+                var json = JsonConvert.SerializeObject(analysedFile);
                 var jsonPath = _options.OutputPath ?? Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"Transcription-{Path.GetFileNameWithoutExtension(_options.AudioPath)}.json");
                 File.WriteAllText(jsonPath, json);
             }
@@ -248,9 +257,35 @@
         }
 
         /// <summary>
-        /// A analysed sentence for a speaker.
+        /// A analysed file.
         /// </summary>
-        private class AnalysedSentence
+        private class AnalysedFile
+        {
+            /// <summary>
+            /// Gets or sets the audio path.
+            /// </summary>
+            public string AudioPath { get; set; }
+
+            /// <summary>
+            /// Gets or sets the audio URI.
+            /// </summary>
+            public string AudioUri { get; set; }
+
+            /// <summary>
+            /// Gets or sets the created timestamp.
+            /// </summary>
+            public DateTime Created { get; set; }
+
+            /// <summary>
+            /// Gets or sets the analysed transcripts..
+            /// </summary>
+            public AnalysedTranscript[] Transcripts { get; set; }
+        }
+
+        /// <summary>
+        /// An analysed transcript by speaker.
+        /// </summary>
+        private class AnalysedTranscript
         {
             /// <summary>
             /// Gets or sets the speaker tag.
@@ -258,9 +293,9 @@
             public int SpeakerTag { get; set; }
 
             /// <summary>
-            /// Gets or sets the setence.
+            /// Gets or sets the transcript.
             /// </summary>
-            public string Sentence { get; set; }
+            public string Transcript { get; set; }
         }
 
         #endregion
