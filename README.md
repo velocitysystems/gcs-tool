@@ -5,6 +5,7 @@ A .NET Core console application to transcribe audio using the Google Speech-to-T
 - Supports long-running transcription
 - Temporarily uploads audio for analysis to Google Cloud Storage
 - Supports WAV/PCM/FLAC audio formats
+- Outputs transcribed text in .json and .text formats
 
 **Supported Platforms**
 - Windows
@@ -17,8 +18,8 @@ A .NET Core console application to transcribe audio using the Google Speech-to-T
 |---|---|---|
 |`-c "credentials.json"`|The path to the "credentials.json" file|True|
 |`-a "audio.flac"`|The path to the audio file to transcribe|True|
-|`-t "en-US"`|The language code of the supplied audio, defaults to en-US.|False|
-|`-o "transcription.json"`|The path to the output transcription JSON file|False|
+|`-b "bucket"`|The bucket to store the uploaded audio|True|
+|`-t "en-US"`|The language code of the supplied audio, defaults to en-US|False|
 
 **Requirements**
 

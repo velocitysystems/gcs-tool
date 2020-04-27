@@ -1,11 +1,10 @@
 ﻿namespace GcsTool.Services
 {
-    using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
     using System.Threading.Tasks;
     using Google.Apis.Storage.v1.Data;
     using Google.Cloud.Storage.V1;
+    using Newtonsoft.Json.Linq;
 
     /// <summary>
     /// Provides services for Google Cloud Storage using the available APIs.
@@ -15,6 +14,7 @@
         #region Fields
 
         private readonly StorageClient _client;
+        private readonly string _projectId;
 
         #endregion
 
@@ -32,11 +32,46 @@
             };
 
             _client = builder.Build();
+            _projectId = GetProjectId(credentialsPath);
         }
 
         #endregion
 
         #region Public Methods
+
+        /// <summary>
+        /// Asychronously get the bucket.
+        /// </summary>
+        /// <param name="bucket">The bucket name.</param>
+        /// <returns>The bucket or null if does not exist.</returns>
+        public async Task<Bucket> GetBucketAsync(string bucket)
+        {
+            try
+            {
+                return await _client.GetBucketAsync(bucket);
+            }
+            catch
+            {
+                return default;
+            }
+        }
+
+        /// <summary>
+        /// Asychronously create the bucket.
+        /// </summary>
+        /// <param name="bucket">The bucket name.</param>
+        /// <returns>The created bucket or null if does not exist.</returns>
+        public async Task<Bucket> CreateBucketAsync(string bucket)
+        {
+            try
+            {
+                return await _client.CreateBucketAsync(_projectId, bucket);
+            }
+            catch
+            {
+                return default;
+            }
+        }
 
         /// <summary>
         /// Asychronously upload the file to the bucket.
@@ -75,6 +110,23 @@
             {
                 return false;
             }
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        /// <summary>
+        /// Get the project identifier from the credentials.
+        /// </summary>
+        /// <param name="credentialsPath">The credentials path.</param>
+        /// <returns>The project identifier.</returns>
+        private string GetProjectId(string credentialsPath)
+        {
+            var json = File.ReadAllText(credentialsPath);
+            var o = JObject.Parse(json);
+
+            return (string)o["project_id"];
         }
 
         #endregion

@@ -24,10 +24,6 @@
         /// </summary>
         public const string ApplicationName = "Google Cloud Speech-to-Text Tool";
 
-        /// <summary>
-        /// The name of the bucket in Google Cloud Storage to upload media.
-        /// </summary>
-        public const string BucketName = "gcs-tool";
 
         #endregion
 
@@ -106,7 +102,7 @@
 
             if (!File.Exists(_options.AudioPath))
             {
-                _logger.Error("The audio file at path {audioPath} does not exist.");
+                _logger.Error("The audio file at path {audioPath} does not exist.", _options.AudioPath);
                 return;
             }
 
@@ -132,22 +128,36 @@
                     throw new NotImplementedException("The codec is not supported.");
             };
 
+            // Asynchronously create the bucket if it doesn't already exist.
+            if (await _storageService.GetBucketAsync(_options.Bucket) is null)
+            {
+                var bucket = await _storageService.CreateBucketAsync(_options.Bucket);
+                if (bucket is null)
+                {
+                    throw new InvalidOperationException("Unable to create bucket.");
+                }
+
+                _logger.Information("Bucket {bucketName} was created.", _options.Bucket);
+            }
+
             // Asynchronously upload the audio.
-            _logger.Information("Uploading audio to bucket {bucketName}.", BucketName);
+            _logger.Information("Uploading audio to bucket {bucketName}.", _options.Bucket);
             var objectName = $"{Guid.NewGuid()}{Path.GetExtension(_options.AudioPath)}";
-            var uploadedAudio = await _storageService.UploadAsync(BucketName, objectName, _options.AudioPath);
-            var uploadedAudioUri = $"gs://{BucketName}/{objectName}";
+            var uploadedAudio = await _storageService.UploadAsync(_options.Bucket, objectName, _options.AudioPath);
+            var uploadedAudioUri = $"gs://{_options.Bucket}/{objectName}";
             _logger.Information("Uploaded audio to {audioUri}.", uploadedAudioUri);
 
             // Asynchronously transcribe the audio.
             try
             {
+                _logger.Information("Transcription started.");
                 IReadOnlyList<SpeechRecognitionAlternative> transcription = null;
                 await foreach (var result in _speechService.LongRunningRecognizeAsync(uploadedAudioUri, encoding, sampleRate, _options.LanguageCode))
                 {
                     if (result.Progress < 100)
                     {
                         _logger.Information("Transcription progress {progress}%.", result.Progress);
+                        continue;
                     }
 
                     transcription = result.Transcription;
@@ -163,13 +173,13 @@
                     var textBlock = new TranscribedTextBlock()
                     {
                         SpeakerTag = group.Key,
-                        Text = string.Join(" ", group.Select(x => x.Word.ToString()).ToArray())
+                        Text = string.Join(" ", group.Select(x => x.Word.ToString()))
                     };
 
                     textBlocks.Add(textBlock);
                 }
 
-                // Create JSON structure.
+                // Write to .json file.
                 var transcribedFile = new TranscribedFile()
                 {
                     AudioPath = _options.AudioPath,
@@ -177,19 +187,22 @@
                     Created = DateTime.Now,
                     TextBlocks = textBlocks.ToArray()
                 };
-
-                // Write to JSON file.
                 var json = JsonConvert.SerializeObject(transcribedFile);
-                var jsonPath = _options.OutputPath ?? Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"Transcription-{Path.GetFileNameWithoutExtension(_options.AudioPath)}.json");
+                var jsonPath = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"Transcription-{Path.GetFileNameWithoutExtension(_options.AudioPath)}.json");
                 File.WriteAllText(jsonPath, json);
+
+                // Write to .txt file.
+                var text = string.Join("\n", textBlocks.Select(q => $"Speaker {q.SpeakerTag}: {q.Text}"));
+                var textPath = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"Transcription-{Path.GetFileNameWithoutExtension(_options.AudioPath)}.txt");
+                File.WriteAllText(textPath, text);
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "The transcription failed.");
+                _logger.Error(ex, "Transcription failed.");
             }
 
             // Asynchronously delete the uploaded audio.
-            switch (await _storageService.DeleteAsync(BucketName, objectName))
+            switch (await _storageService.DeleteAsync(_options.Bucket, objectName))
             {
                 case true:
                     _logger.Information("Deleted uploaded audio.");
@@ -253,11 +266,11 @@
             [Option('a', "audioPath", Required = true, HelpText = "The path to the audio file to transcribe.")]
             public string AudioPath { get; set; }
 
+            [Option('b', "bucket", Required = false, HelpText = "The bucket to store the uploaded audio, defaults to \"gcs-tool\".")]
+            public string Bucket { get; set; } = "gcs-tool";
+
             [Option('l', "languageCode", Required = false, HelpText = "The language code of the supplied audio, defaults to en-US.")]
             public string LanguageCode { get; set; } = "en-US";
-
-            [Option('o', "outputPath", Required = false, HelpText = "The path to the output transcription JSON file.")]
-            public string OutputPath { get; set; }
         }
 
         #endregion
